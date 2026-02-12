@@ -5,7 +5,7 @@ and optimization hyperparameters. All angles are in radians.
 """
 
 from dataclasses import dataclass, field
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -27,7 +27,7 @@ class SlicingConfig:
     """
 
     n_layers: int = 200
-    support_angle: float = field(default_factory=lambda: float(np.deg2rad(50.0)))
+    support_angle: float = field(default_factory=lambda: float(np.deg2rad(40.0)))
     surface_quality_angle: float = 0.0
     tank_width: float = 1.5
     tank_length: float = 1.5
@@ -75,7 +75,7 @@ class OptimizerConfig:
         log_interval: Print progress every N iterations when verbose is True.
     """
 
-    learning_rate: float = 0.1
+    learning_rate: float = 0.01
     max_iterations: int = 2000
     max_restarts: int = 3
     bad_steps_limit: int = 10
@@ -98,6 +98,11 @@ class OptimizerConfig:
 
     # Differentiable approximation sharpness
     k: float = 1e4
+    k_start: Optional[float] = None
+    """Starting value of *k* for annealing.  When set (not ``None``),
+    *k* is annealed from ``k_start`` to ``k`` on a log-linear schedule
+    over each restart.  ``None`` (default) disables annealing and uses
+    ``k`` as a constant throughout."""
 
     # Collision checking
     collision_check_step: int = 2

@@ -191,6 +191,12 @@ def main():
                         help="Directory to save results")
     parser.add_argument("--log-file", default="optimization.log",
                         help="Log file path (empty to disable)")
+    parser.add_argument("--k-start", type=float, default=None,
+                        help="Start value for k-annealing (e.g. 100). "
+                             "Anneals from k-start to k over each restart. "
+                             "If not set, k is constant.")
+    parser.add_argument("--k", type=float, default=None,
+                        help="Sharpness parameter k (default: 10000)")
     parser.add_argument("--setup-opt", action="store_true",
                         help="Also optimize quaternion and translation "
                              "(default: only control_points)")
@@ -234,12 +240,17 @@ def main():
     slicing_config = SlicingConfig(
         n_layers=args.n_layers,
     )
-    optimizer_config = OptimizerConfig(
+    opt_kwargs = dict(
         learning_rate=args.lr,
         max_iterations=args.iters,
         max_restarts=args.restarts,
         setup_opt=args.setup_opt,
     )
+    if args.k is not None:
+        opt_kwargs['k'] = args.k
+    if args.k_start is not None:
+        opt_kwargs['k_start'] = args.k_start
+    optimizer_config = OptimizerConfig(**opt_kwargs)
 
     # ---- Run optimization ----
     start_time = time.time()

@@ -343,7 +343,7 @@ def optimize(
 
     # ---- Define the total loss function (closed over constants) ----
     @jit
-    def total_loss(params: Dict[str, jnp.ndarray]) -> float:
+    def total_loss(params: Dict[str, jnp.ndarray], k: float) -> float:
         losses = compute_all_losses(
             params['control_points'],
             params['quaternion'],
@@ -358,7 +358,7 @@ def optimize(
             sin_support,
             sin_quality,
             cuboid_planes,
-            oc.k,
+            k,
             oc.collision_check_step,
         )
         collision, floating, support, completeness, surface_quality = losses
@@ -378,8 +378,8 @@ def optimize(
 
     # ---- Define a single gradient step ----
     @jit
-    def update_step(params, opt_state):
-        loss, grads = value_and_grad(total_loss)(params)
+    def update_step(params, opt_state, k):
+        loss, grads = value_and_grad(total_loss, argnums=0)(params, k)
         updates, new_opt_state = optimizer.update(grads, opt_state, params)
         new_params = optax.apply_updates(params, updates)
         # Re-normalize quaternion to stay on the unit sphere
@@ -434,6 +434,18 @@ def optimize(
     log.timing("precompute + transfer", timings["precompute"])
     log.timing("initial loss eval", timings["initial_loss"])
 
+    # k-annealing schedule (per-restart, log-space from k_start to k)
+    _k_end = float(oc.k)
+    _k_start = float(oc.k_start) if oc.k_start is not None else _k_end
+    _use_k_anneal = _k_start != _k_end
+    if _use_k_anneal:
+        k_schedule = jnp.array(
+            np.logspace(np.log10(_k_start), np.log10(_k_end), oc.max_iterations),
+            dtype=jnp.float32,
+        )
+    else:
+        k_schedule = jnp.full((oc.max_iterations,), _k_end, dtype=jnp.float32)
+
     total_start = time.time()
     timings["iterations"] = 0.0
     timings["normalize_curve"] = 0.0
@@ -448,8 +460,9 @@ def optimize(
 
         for iteration in range(oc.max_iterations):
             current_params = params.copy()
+            k_current = k_schedule[iteration]
             t_step = time.time()
-            params, opt_state, loss, grad_stats = update_step(params, opt_state)
+            params, opt_state, loss, grad_stats = update_step(params, opt_state, k_current)
             loss_val = float(loss)
             step_dt = time.time() - t_step
 
@@ -484,7 +497,8 @@ def optimize(
                 improved = True
 
             log.step(iteration, loss_val, best_loss, improved,
-                     time.time() - restart_start)
+                     time.time() - restart_start,
+                     k_current=float(k_current) if _use_k_anneal else None)
 
             # Gradient health diagnostics (only at log intervals)
             if log._should_log(iteration):

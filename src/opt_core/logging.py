@@ -100,6 +100,13 @@ class OptimizationLogger:
             oc.max_restarts, oc.max_iterations, oc.learning_rate,
         )
         self._logger.info("  Optimizing: %s", ", ".join(oc.optimize_params))
+        if oc.k_start is not None and oc.k_start != oc.k:
+            self._logger.info(
+                "  k-annealing: %.0f -> %.0f (log-space, per restart)",
+                oc.k_start, oc.k,
+            )
+        else:
+            self._logger.info("  k: %.0f (constant)", oc.k)
         self._logger.info(_SEP)
 
     def initial(self, total_loss: float,
@@ -114,15 +121,22 @@ class OptimizationLogger:
         self._logger.info("--- Restart %d/%d ---", restart + 1, max_restarts)
 
     def step(self, iteration: int, loss_val: float,
-             best_loss: float, improved: bool, elapsed: float) -> None:
-        """Log a single iteration (only at ``log_interval`` boundaries)."""
+             best_loss: float, improved: bool, elapsed: float,
+             k_current: float = None) -> None:
+        """Log a single iteration (only at ``log_interval`` boundaries).
+
+        Args:
+            k_current: If not None, the current k value (shown when
+                k-annealing is active).
+        """
         if not self._should_log(iteration):
             return
         marker = " *" if improved else ""
+        k_str = f"  k={k_current:.0f}" if k_current is not None else ""
         self._logger.info(
-            "  [%*d/%d]  loss=%.6f  best=%.6f%s  (%.1fs)",
+            "  [%*d/%d]  loss=%.6f  best=%.6f%s%s  (%.1fs)",
             self._iter_width, iteration + 1, self._max_iterations,
-            loss_val, best_loss, marker, elapsed,
+            loss_val, best_loss, marker, k_str, elapsed,
         )
 
     def grad_health(self, stats: Dict[str, Dict[str, float]]) -> None:
