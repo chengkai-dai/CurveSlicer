@@ -42,4 +42,4 @@ uv run python run_optimization.py --model woman-pully
 - `--log-file`: pass `''` to disable file logging
 - `--quiet`: disable console logging
 
-GUI is under development.
+GUI is Cursor smoothening
