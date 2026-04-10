@@ -7,7 +7,7 @@ Curved slicing optimizer for DLP printing.
 Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/). 
 
 ```bash
-git clone https://github.com/chengkai-dai/CurveSlicer
+git clone git@github.com:chengkai-dai/CurveSlicer.git
 cd CurveSlicer
 uv sync
 ```
